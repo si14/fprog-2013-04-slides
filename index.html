@@ -122,7 +122,7 @@ foldr f z (x:xs) = f x (foldr f z xs)</code></pre></p>
   (clojure.core.protocols/coll-reduce coll f init))</code></pre></p>
                   <ul>
                     <li>безразличен к структуре коллекции</li>
-                    <li>общий интерфейс для коллекций плюс sequential fallback</li>
+                    <li>общий интерфейс для коллекций (reducible) плюс sequential fallback</li>
                     <li>строит любую структуру</li>
                     <li>не ленив</li>
                     <li>имеет порядок вычисления (foldl)</li>
@@ -140,6 +140,32 @@ foldr f z (x:xs) = f x (foldr f z xs)</code></pre></p>
                   <pre><code class="clojure">(reduce + 0 (map inc [1 2 3])) ; allocates chunks!</code></pre>
                   <pre><code class="haskell">S.foldl (+) 0 $ S.map (+1) $ S.stream [1, 2, 3] -- does not</code></pre>
                 </section>
+
+                <section><h2>Map-under-reduce</h2>
+<pre>
+    val
+     |
+---reduce--
+/ | | | | \
+| | | | | |
+f f f f f f <- map
+| | | | | |
+a b c d e f
+</pre>
+</section>
+
+                <section><h2>Filter-under-reduce</h2>
+<pre>
+    val
+     |
+---reduce--
+/ |   |
+| |   |
+p p p p p p <- filter
+| | | | | |
+a b c d e f
+</pre>
+</section>
 
                 <section><h2>Reducing functions</h2>
 <pre><code class="clojure">(defn mapping [f]
@@ -170,15 +196,24 @@ foldr f z (x:xs) = f x (foldr f z xs)</code></pre></p>
   (clojure.core.protocols/coll-reduce coll f init))</code></pre>
                   <pre><code class="clojure">(reduce + 0 (map inc [1 2 3]))</code></pre>
                   <p>VS</p>
-                  <pre><code class="clojure">(defn reducer [coll xf]
-  (reify CollReduce
-         (coll-reduce [_ f1 init]
-           (coll-reduce coll (xf f1) init))))</code></pre>
                   <pre><code class="clojure">(reduce + 0 (reducer [1 2 3] (mapping inc)))</code></pre>
                   <pre><code class="clojure">(defn rmap [f coll] (reducer coll (mapping f)))</code></pre>
                   <pre><code class="clojure">(reduce + 0 (rmap inc [1 2 3]))</code></pre>
-                  <p>seqable → reducible (ordered → unordered)</p>
-                  <p>в Clojure с версии 1.5</p>
+                  <ul>
+                    <li>код выглядит так же</li>
+                    <li>те же структуры данных</li>
+                    <li>в Clojure с версии 1.5</li>
+                  </ul>
+                  <!-- <p>seqable → reducible (ordered → unordered)</p> -->
+                  <!-- <p>в Clojure с версии 1.5</p> -->
+                </section>
+
+                <section>
+                  <h2>Генерализация</h2>
+                  <ul>
+                    <li>map: fn * seqable → seqable</li>
+                    <li>rmap: fn * reducible → reducible</li>
+                  </ul>
                 </section>
 
                 <section>
@@ -209,7 +244,7 @@ foldr f z (x:xs) = f x (foldr f z xs)</code></pre></p>
                 (break-into-chunks data)))</code></pre>
                   <pre><code class="clojure">(r/fold + + (r/map inc (r/filter even? data)))</code></pre>
                   <ul>
-                    <li>reducer игнорирует порядок (map/filter VS take)</li>
+                    <li>reducer игнорирует порядок (map/filter VS take 5th)</li>
                     <li>(combine-fn) возвращает id (reduce seed)</li>
                     <li>(combine-fn x id) → x</li>
                     <li>(кстати, это моноид)</li>
@@ -226,6 +261,24 @@ foldr f z (x:xs) = f x (foldr f z xs)</code></pre></p>
 (time (reduce + (r/map inc (r/filter even? v)))) ; 260-290msec
 (time (r/fold + (r/map inc (r/filter even? v)))) ; 150-160msec (2 cores)
 </code></pre>
+                </section>
+
+                <section>
+                  <h2>Не только факториалы</h2>
+                  <a href="https://github.com/thebusby/iota">https://github.com/thebusby/iota</a>
+                  <ul>
+                    <li>Java NIO mmap</li>
+                    <li>реализует построчный reducible (с простым индексом)</li>
+                    <li>прекрасно работает с параллельным fold'ом</li>
+                  </ul>
+                  <pre><code class="clojure">;; Count number of non-empty fields in TSV file
+(->> (iota/vec filename)
+     (clojure.core.reducers/filter identity) ;; filter out empty lines
+     (clojure.core.reducers/map
+        #(->> (clojure.string/split % #"[\t]" -1)
+              (filter (fn [^String s] (not (.isEmpty s))))
+              count))
+     (clojure.core.reducers/fold +))</code></pre>
                 </section>
 
                 <section>
