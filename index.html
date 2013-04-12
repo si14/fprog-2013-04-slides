@@ -61,6 +61,18 @@
                 </section>
 
                 <section>
+                  <h2>Очень краткое введение в Clojure</h2>
+                  <p>Threading macro:</p>
+                  <pre><code class="clojure">(-> a (foo b) (bar c d))</code></pre>
+                  =
+                  <pre><code class="clojure">(bar (foo a b) c d)</code></pre>
+                  <p>&nbsp;</p>
+                  <pre><code class="clojure">(->> a (foo b) (bar c d))</code></pre>
+                  =
+                  <pre><code class="clojure">(bar c d (foo b a))</code></pre>
+                </section>
+
+                <section>
                   <h1>Foldl(r) considered slightly harmful</h1>
                   Guy Steele at ACM SIGPLAN 2009
                 </section>
@@ -273,13 +285,13 @@ a b c d e f
                   </ul>
                   <pre><code class="clojure">;; Count number of non-empty fields in TSV file
 (->> (iota/vec filename)
-     (clojure.core.reducers/filter identity) ;; filter out empty lines
-     (clojure.core.reducers/map
+     (r/filter identity) ;; filter out empty lines
+     (r/map
         #(->> (clojure.string/split % #"[\t]" -1)
               (filter (fn [^String s] (not (.isEmpty s))))
               count))
-     (clojure.core.reducers/fold +))</code></pre>
-                </section>
+     (r/fold +))</code></pre>
+</section>
 
                 <section>
                   <h1>Вопросы?</h1>
